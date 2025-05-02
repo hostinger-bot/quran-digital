@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import TafsirSurah from './TafsirSurah';
 
 function SurahDetail({ surah, onSelectSurah }) {
   const [currentAudio, setCurrentAudio] = useState(null);
@@ -8,8 +10,14 @@ function SurahDetail({ surah, onSelectSurah }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [expandDescription, setExpandDescription] = useState(false);
-  const ayatRefs = useRef([]);
+  const [showTafsir, setShowTafsir] = useState(false);
+  const [selectedTafsir, setSelectedTafsir] = useState(null);
+  const [tafsirData, setTafsirData] = useState([]);
+  const [tafsirLoading, setTafsirLoading] = useState(false);
+  const [tafsirError, setTafsirError] = useState(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const audioRef = useRef(null);
+  const ayatListRef = useRef(null);
 
   const reciters = {
     '01': 'Abdullah Al-Juhany',
@@ -19,7 +27,41 @@ function SurahDetail({ surah, onSelectSurah }) {
     '05': 'Misyari Rasyid Al-Afasi',
   };
 
-  const playAyatAudio = (url, ayatIndex) => {
+  // Update scroll progress sabtu, tgl 3 2025 (Tio)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (ayatListRef.current) {
+        const scrollTop = window.scrollY;
+        const scrollHeight = ayatListRef.current.scrollHeight - window.innerHeight;
+        const progress = (scrollTop / scrollHeight) * 100;
+        setScrollProgress(progress > 100 ? 100 : progress < 0 ? 0 : progress);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [surah]);
+
+  useEffect(() => {
+    setTafsirLoading(true);
+    axios
+      .get(`https://equran.id/api/v2/tafsir/${surah.nomor}`)
+      .then((response) => {
+        if (response.data.code === 200) {
+          setTafsirData(response.data.data.tafsir);
+          setTafsirLoading(false);
+        } else {
+          setTafsirError('Failed to fetch tafsir');
+          setTafsirLoading(false);
+        }
+      })
+      .catch((err) => {
+        setTafsirError('Error fetching tafsir: ' + err.message);
+        setTafsirLoading(false);
+      });
+  }, [surah.nomor]);
+
+  const playAyatAudio = (url) => {
     if (currentAudio) {
       currentAudio.pause();
       currentAudio.currentTime = 0;
@@ -32,11 +74,6 @@ function SurahDetail({ surah, onSelectSurah }) {
     const audio = new Audio(url);
     audio.play();
     setCurrentAudio(audio);
-
-    const ayatElement = ayatRefs.current[ayatIndex];
-    if (ayatElement) {
-      ayatElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
 
     audio.onended = () => {
       setCurrentAudio(null);
@@ -52,8 +89,9 @@ function SurahDetail({ surah, onSelectSurah }) {
     if (!audioRef.current) {
       audioRef.current = new Audio(surah.audioFull[selectedReciter]);
       audioRef.current.ontimeupdate = () => {
-        setCurrentTime(audioRef.current.currentTime);
-        setAudioProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
+        const current = audioRef.current.currentTime;
+        setCurrentTime(current);
+        setAudioProgress((current / audioRef.current.duration) * 100);
       };
       audioRef.current.onloadedmetadata = () => {
         setDuration(audioRef.current.duration);
@@ -98,8 +136,18 @@ function SurahDetail({ surah, onSelectSurah }) {
     setExpandDescription(!expandDescription);
   };
 
+  const toggleTafsir = (ayatNumber) => {
+    const tafsir = tafsirData.find((item) => item.ayat === parseInt(ayatNumber));
+    const ayat = surah.ayat.find((item) => item.nomorAyat === ayatNumber);
+    setSelectedTafsir({
+      tafsir: tafsir || null,
+      arabicText: ayat ? ayat.teksArab : 'Teks Arab tidak tersedia'
+    });
+    setShowTafsir(!!tafsir);
+  };
+
   return (
-    <div className="surah-detail-container flex flex-col items-center p-4 pt-16">
+    <div className="surah-detail-container flex flex-col items-center p-4 pt-16 relative">
       <div className="surah-detail-card">
         <h1 className="surah-detail-title">
           {surah.nomor}. {surah.namaLatin} ({surah.arti})
@@ -149,20 +197,26 @@ function SurahDetail({ surah, onSelectSurah }) {
             <span>{formatTime(duration)}</span>
           </div>
         </div>
-        <div className="ayat-list">
+        <div className="ayat-list" ref={ayatListRef}>
           {surah.ayat.map((ayat, index) => (
             <div
               key={ayat.nomorAyat}
-              ref={(el) => (ayatRefs.current[index] = el)}
               className="ayat-card"
             >
               <div className="ayat-header">
                 <h3 className="ayat-number">
                   <i className="fas fa-bookmark mr-2"></i>
                   {ayat.nomorAyat}
+                  <button
+                    onClick={() => toggleTafsir(ayat.nomorAyat)}
+                    className="tafsir-button ml-2 px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    <i className="fas fa-book mr-1"></i>
+                    Tafsir
+                  </button>
                 </h3>
                 <button
-                  onClick={() => playAyatAudio(ayat.audio[selectedReciter], index)}
+                  onClick={() => playAyatAudio(ayat.audio[selectedReciter])}
                   className={`play-button px-3 py-1 ${currentAudio && currentAudio.src === ayat.audio[selectedReciter] ? 'playing' : ''}`}
                 >
                   <i className={currentAudio && currentAudio.src === ayat.audio[selectedReciter] ? 'fas fa-pause mr-2' : 'fas fa-play mr-2'}></i>
@@ -175,6 +229,30 @@ function SurahDetail({ surah, onSelectSurah }) {
             </div>
           ))}
         </div>
+        <div className="scroll-indicator fixed right-2 top-1/2 transform -translate-y-1/2 h-32 w-2 bg-gray-200 rounded">
+          <div
+            className="scroll-cursor bg-blue-500 rounded"
+            style={{ height: `${scrollProgress}%`, width: '100%' }}
+          ></div>
+        </div>
+        {showTafsir && selectedTafsir && (
+          <TafsirSurah
+            tafsir={selectedTafsir.tafsir}
+            arabicText={selectedTafsir.arabicText}
+            onClose={() => setShowTafsir(false)}
+          />
+        )}
+        {tafsirLoading && (
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <p className="loading-text">Loading tafsir data...</p>
+          </div>
+        )}
+        {tafsirError && (
+          <div className="error-container">
+            <p className="error-text">{tafsirError}</p>
+          </div>
+        )}
         <div className="navigation-buttons flex justify-between mt-6">
           {surah.suratSebelumnya && (
             <button

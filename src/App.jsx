@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import SurahList from './components/SurahList';
 import SurahDetail from './components/SurahDetail';
@@ -10,6 +10,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const appContainerRef = useRef(null);
 
   useEffect(() => {
     axios
@@ -28,6 +30,21 @@ function App() {
         setLoading(false);
       });
   }, []);
+
+  // Update scroll progress sabtu, tgl 3 2025 (Tio)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (appContainerRef.current) {
+        const scrollTop = window.scrollY;
+        const scrollHeight = appContainerRef.current.scrollHeight - window.innerHeight;
+        const progress = (scrollTop / scrollHeight) * 100;
+        setScrollProgress(progress > 100 ? 100 : progress < 0 ? 0 : progress);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [showSearch, selectedSurah]);
 
   const handleSelectSurah = (nomor) => {
     setLoading(true);
@@ -59,7 +76,7 @@ function App() {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
-        <p className="loading-text">Loading Quran data...</p>
+        <p className="loading-text">Loading...</p>
       </div>
     );
   }
@@ -79,7 +96,7 @@ function App() {
   }
 
   return (
-    <div className="app-container">
+    <div className="app-container" ref={appContainerRef}>
       <nav className="navbar">
         <button onClick={toggleSearch} className="search-button">
           <i className={showSearch ? "fas fa-times" : "fas fa-search"}></i>
@@ -92,6 +109,12 @@ function App() {
       ) : (
         <SurahList surahs={surahs} onSelectSurah={handleSelectSurah} />
       )}
+      <div className="scroll-indicator fixed right-2 top-1/2 transform -translate-y-1/2 h-32 w-2 bg-gray-200 rounded">
+        <div
+          className="scroll-cursor bg-blue-500 rounded"
+          style={{ height: `${scrollProgress}%`, width: '100%' }}
+        ></div>
+      </div>
       <footer className="footer">
         <a href="/" className="footer-link">
           <i className="fas fa-home mr-2"></i> Back to Home
