@@ -16,6 +16,7 @@ function SurahDetail({ surah, onSelectSurah }) {
   const [tafsirLoading, setTafsirLoading] = useState(false);
   const [tafsirError, setTafsirError] = useState(null);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [currentAyatIndex, setCurrentAyatIndex] = useState(null);
   const audioRef = useRef(null);
   const ayatListRef = useRef(null);
 
@@ -27,7 +28,7 @@ function SurahDetail({ surah, onSelectSurah }) {
     '05': 'Misyari Rasyid Al-Afasi',
   };
 
-  // Update scroll progress sabtu, tgl 3 2025 (Tio)
+  // Update scroll progress
   useEffect(() => {
     const handleScroll = () => {
       if (ayatListRef.current) {
@@ -42,6 +43,7 @@ function SurahDetail({ surah, onSelectSurah }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [surah]);
 
+  // Fetch tafsir data
   useEffect(() => {
     setTafsirLoading(true);
     axios
@@ -61,7 +63,7 @@ function SurahDetail({ surah, onSelectSurah }) {
       });
   }, [surah.nomor]);
 
-  const playAyatAudio = (url) => {
+  const playAyatAudio = (url, index) => {
     if (currentAudio) {
       currentAudio.pause();
       currentAudio.currentTime = 0;
@@ -72,11 +74,13 @@ function SurahDetail({ surah, onSelectSurah }) {
       setIsFullAudioPlaying(false);
     }
     const audio = new Audio(url);
-    audio.play();
+    audio.play().catch((err) => console.error('Audio play error:', err));
     setCurrentAudio(audio);
+    setCurrentAyatIndex(index);
 
     audio.onended = () => {
       setCurrentAudio(null);
+      setCurrentAyatIndex(null);
     };
   };
 
@@ -85,6 +89,7 @@ function SurahDetail({ surah, onSelectSurah }) {
       currentAudio.pause();
       currentAudio.currentTime = 0;
       setCurrentAudio(null);
+      setCurrentAyatIndex(null);
     }
     if (!audioRef.current) {
       audioRef.current = new Audio(surah.audioFull[selectedReciter]);
@@ -102,7 +107,7 @@ function SurahDetail({ surah, onSelectSurah }) {
         setCurrentTime(0);
       };
     }
-    audioRef.current.play();
+    audioRef.current.play().catch((err) => console.error('Full audio play error:', err));
     setIsFullAudioPlaying(true);
   };
 
@@ -141,7 +146,7 @@ function SurahDetail({ surah, onSelectSurah }) {
     const ayat = surah.ayat.find((item) => item.nomorAyat === ayatNumber);
     setSelectedTafsir({
       tafsir: tafsir || null,
-      arabicText: ayat ? ayat.teksArab : 'Teks Arab tidak tersedia'
+      arabicText: ayat ? ayat.teksArab : 'Teks Arab tidak tersedia',
     });
     setShowTafsir(!!tafsir);
   };
@@ -153,22 +158,25 @@ function SurahDetail({ surah, onSelectSurah }) {
           {surah.nomor}. {surah.namaLatin} ({surah.arti})
         </h1>
         <p className="surah-detail-info">
-          <i className="fas fa-mosque mr-2"></i>
+          <i className="fas fa-mosque mr-2" />
           {surah.jumlahAyat} Ayat | {surah.tempatTurun}
         </p>
-        <div className={`surah-detail-description ${expandDescription ? 'description-expanded' : ''}`}
-             dangerouslySetInnerHTML={{ __html: surah.deskripsi }}>
-        </div>
-        <button 
+        <div
+          className={`surah-detail-description ${expandDescription ? 'description-expanded' : ''}`}
+          dangerouslySetInnerHTML={{ __html: surah.deskripsi }}
+        />
+        <button
           className={`read-more-button ${expandDescription ? 'expanded' : ''}`}
           onClick={toggleDescription}
         >
-          {expandDescription ? 'Sembunyikan' : 'Baca Selengkapnya'} 
-          <i className={expandDescription ? 'fas fa-chevron-up ml-2' : 'fas fa-chevron-down ml-2'}></i>
+          {expandDescription ? 'Sembunyikan' : 'Baca Selengkapnya'}
+          <i
+            className={expandDescription ? 'fas fa-chevron-up ml-2' : 'fas fa-chevron-down ml-2'}
+          />
         </button>
-        
+
         <div className="reciter-selector mb-4">
-          <label className="reciter-label">Select Reciter:</label>
+          <label className="reciter-label">Pilih Qari:</label>
           <select
             value={selectedReciter}
             onChange={(e) => setSelectedReciter(e.target.value)}
@@ -186,11 +194,16 @@ function SurahDetail({ surah, onSelectSurah }) {
             onClick={isFullAudioPlaying ? pauseFullAudio : playFullAudio}
             className={`full-audio-button px-4 py-2 ${isFullAudioPlaying ? 'playing' : ''}`}
           >
-            <i className={isFullAudioPlaying ? 'fas fa-pause mr-2' : 'fas fa-play mr-2'}></i>
-            {isFullAudioPlaying ? 'Pause Full Audio' : 'Play Full Audio'}
+            <i
+              className={isFullAudioPlaying ? 'fas fa-pause mr-2' : 'fas fa-play mr-2'}
+            />
+            {isFullAudioPlaying ? 'Jeda Audio' : 'Putar Full Audio'}
           </button>
           <div className="audio-progress-container">
-            <div className="audio-progress-bar" style={{ width: `${audioProgress}%` }}></div>
+            <div
+              className="audio-progress-bar"
+              style={{ width: `${audioProgress}%` }}
+            />
           </div>
           <div className="audio-time">
             <span>{formatTime(currentTime)}</span>
@@ -201,26 +214,44 @@ function SurahDetail({ surah, onSelectSurah }) {
           {surah.ayat.map((ayat, index) => (
             <div
               key={ayat.nomorAyat}
-              className="ayat-card"
+              className={`ayat-card transition-all duration-300 ${
+                currentAyatIndex === index ? 'bg-blue-100 border-l-4 border-blue-500' : ''
+              }`}
             >
               <div className="ayat-header">
                 <h3 className="ayat-number">
-                  <i className="fas fa-bookmark mr-2"></i>
+                  <i className="fas fa-bookmark mr-2" />
                   {ayat.nomorAyat}
                   <button
                     onClick={() => toggleTafsir(ayat.nomorAyat)}
                     className="tafsir-button ml-2 px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
                   >
-                    <i className="fas fa-book mr-1"></i>
+                    <i className="fas fa-book mr-1" />
                     Tafsir
                   </button>
                 </h3>
                 <button
-                  onClick={() => playAyatAudio(ayat.audio[selectedReciter])}
-                  className={`play-button px-3 py-1 ${currentAudio && currentAudio.src === ayat.audio[selectedReciter] ? 'playing' : ''}`}
+                  onClick={() => {
+                    if (currentAyatIndex === index && currentAudio) {
+                      currentAudio.pause();
+                      setCurrentAudio(null);
+                      setCurrentAyatIndex(null);
+                    } else {
+                      playAyatAudio(ayat.audio[selectedReciter], index);
+                    }
+                  }}
+                  className={`play-button px-3 py-1 ${
+                    currentAyatIndex === index && currentAudio ? 'playing' : ''
+                  }`}
                 >
-                  <i className={currentAudio && currentAudio.src === ayat.audio[selectedReciter] ? 'fas fa-pause mr-2' : 'fas fa-play mr-2'}></i>
-                  {currentAudio && currentAudio.src === ayat.audio[selectedReciter] ? 'Playing' : 'Play'}
+                  <i
+                    className={
+                      currentAyatIndex === index && currentAudio
+                        ? 'fas fa-pause mr-2'
+                        : 'fas fa-play mr-2'
+                    }
+                  />
+                  {currentAyatIndex === index && currentAudio ? 'Berhenti' : 'Putar'}
                 </button>
               </div>
               <p className="ayat-arabic">{ayat.teksArab}</p>
@@ -233,7 +264,7 @@ function SurahDetail({ surah, onSelectSurah }) {
           <div
             className="scroll-cursor bg-blue-500 rounded"
             style={{ height: `${scrollProgress}%`, width: '100%' }}
-          ></div>
+          />
         </div>
         {showTafsir && selectedTafsir && (
           <TafsirSurah
@@ -244,7 +275,7 @@ function SurahDetail({ surah, onSelectSurah }) {
         )}
         {tafsirLoading && (
           <div className="loading-container">
-            <div className="loading-spinner"></div>
+            <div className="loading-spinner" />
             <p className="loading-text">Loading tafsir data...</p>
           </div>
         )}
@@ -259,7 +290,7 @@ function SurahDetail({ surah, onSelectSurah }) {
               onClick={() => onSelectSurah(surah.suratSebelumnya.nomor)}
               className="modern-nav-button px-4 py-2"
             >
-              <i className="fas fa-arrow-left mr-2"></i>
+              <i className="fas fa-arrow-left mr-2" />
               {surah.suratSebelumnya.namaLatin}
             </button>
           )}
@@ -269,7 +300,7 @@ function SurahDetail({ surah, onSelectSurah }) {
               className="modern-nav-button px-4 py-2"
             >
               {surah.suratSelanjutnya.namaLatin}
-              <i className="fas fa-arrow-right ml-2"></i>
+              <i className="fas fa-arrow-right ml-2" />
             </button>
           )}
         </div>

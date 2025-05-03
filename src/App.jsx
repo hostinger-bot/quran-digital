@@ -3,6 +3,7 @@ import axios from 'axios';
 import SurahList from './components/SurahList';
 import SurahDetail from './components/SurahDetail';
 import SearchSurah from './components/SearchSurah';
+import PrayerTimes from './components/PrayerTimes';
 
 function App() {
   const [surahs, setSurahs] = useState([]);
@@ -10,7 +11,9 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [showPrayerTimes, setShowPrayerTimes] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [isScrolled, setIsScrolled] = useState(false);
   const appContainerRef = useRef(null);
 
   useEffect(() => {
@@ -31,7 +34,6 @@ function App() {
       });
   }, []);
 
-  // Update scroll progress sabtu, tgl 3 2025 (Tio)
   useEffect(() => {
     const handleScroll = () => {
       if (appContainerRef.current) {
@@ -39,12 +41,13 @@ function App() {
         const scrollHeight = appContainerRef.current.scrollHeight - window.innerHeight;
         const progress = (scrollTop / scrollHeight) * 100;
         setScrollProgress(progress > 100 ? 100 : progress < 0 ? 0 : progress);
+        setIsScrolled(scrollTop > 50);
       }
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [showSearch, selectedSurah]);
+  }, [showSearch, selectedSurah, showPrayerTimes]);
 
   const handleSelectSurah = (nomor) => {
     setLoading(true);
@@ -54,6 +57,7 @@ function App() {
         if (response.data.code === 200) {
           setSelectedSurah(response.data.data);
           setShowSearch(false);
+          setShowPrayerTimes(false);
           setLoading(false);
           window.scrollTo(0, 0);
         } else {
@@ -70,6 +74,14 @@ function App() {
   const toggleSearch = () => {
     setShowSearch(!showSearch);
     setSelectedSurah(null);
+    setShowPrayerTimes(false);
+  };
+
+  const togglePrayerTimes = () => {
+    setShowPrayerTimes(!showPrayerTimes);
+    setShowSearch(false);
+    setSelectedSurah(null);
+    window.scrollTo(0, 0);
   };
 
   if (loading) {
@@ -97,18 +109,33 @@ function App() {
 
   return (
     <div className="app-container" ref={appContainerRef}>
-      <nav className="navbar">
-        <button onClick={toggleSearch} className="search-button">
-          <i className={showSearch ? "fas fa-times" : "fas fa-search"}></i>
-        </button>
+      <nav className={`navbar ${isScrolled ? 'scrolled' : ''}`}>
+        <div className="navbar-left">
+          <button onClick={togglePrayerTimes} className="prayer-button">
+            <i className={showPrayerTimes ? "fas fa-times" : "fas fa-pray"}></i>
+          </button>
+        </div>
+        <div className="navbar-center">
+          <h1 className="navbar-title">Digital Quran</h1>
+          <p className="navbar-subtitle">Baca dan dengarkan Al-Quran dengan terjemahan dan audio dari qari terbaik</p>
+        </div>
+        <div className="navbar-right">
+          <button onClick={toggleSearch} className="search-button">
+            <i className={showSearch ? "fas fa-times" : "fas fa-search"}></i>
+          </button>
+        </div>
       </nav>
-      {showSearch ? (
-        <SearchSurah surahs={surahs} onSelectSurah={handleSelectSurah} />
-      ) : selectedSurah ? (
-        <SurahDetail surah={selectedSurah} onSelectSurah={handleSelectSurah} />
-      ) : (
-        <SurahList surahs={surahs} onSelectSurah={handleSelectSurah} />
-      )}
+      <div className="main-content">
+        {showPrayerTimes ? (
+          <PrayerTimes />
+        ) : showSearch ? (
+          <SearchSurah surahs={surahs} onSelectSurah={handleSelectSurah} />
+        ) : selectedSurah ? (
+          <SurahDetail surah={selectedSurah} onSelectSurah={handleSelectSurah} />
+        ) : (
+          <SurahList surahs={surahs} onSelectSurah={handleSelectSurah} />
+        )}
+      </div>
       <div className="scroll-indicator fixed right-2 top-1/2 transform -translate-y-1/2 h-32 w-2 bg-gray-200 rounded">
         <div
           className="scroll-cursor bg-blue-500 rounded"
@@ -116,9 +143,15 @@ function App() {
         ></div>
       </div>
       <footer className="footer">
-        <a href="/" className="footer-link">
-          <i className="fas fa-home mr-2"></i> Back to Home
-        </a>
+        <div className="footer-links">
+<a href="#" onClick={(e) => { e.preventDefault(); window.location.reload(); }} className="footer-link">
+  <i className="fas fa-home mr-2"></i> Kembali
+</a>
+
+          <a href="//github.com/hostinger-bot/quran-digital" className="footer-link">
+            <i className="fas fa-file-code mr-2"></i> Script
+          </a>
+        </div>
         <p className="footer-date">
           <i className="fas fa-calendar-alt mr-2"></i> {new Date().toLocaleDateString()} BOTCAHX
         </p>

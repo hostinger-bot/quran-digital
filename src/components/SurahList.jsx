@@ -1,11 +1,6 @@
 function SurahList({ surahs, onSelectSurah }) {
   return (
     <>
-      <div className="hero-section">
-        <h1 className="hero-title">Digital Quran</h1>
-        <p className="hero-subtitle">Baca dan dengarkan Al-Quran dengan terjemahan dan audio dari qari terbaik</p>
-      </div>
-    
       <div className="surah-list-container flex flex-col items-center p-4">
         <h1 className="surah-list-title">Daftar Surah</h1>
         <div className="surah-grid">
