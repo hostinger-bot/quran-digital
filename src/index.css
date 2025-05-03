@@ -801,3 +801,24 @@ body {
     font-size: 1rem;
   }
 }
+.font-arabic {
+  font-family: 'Amiri', serif;
+}
+.hadith-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1A3C34;
+  text-align: center;
+  margin-bottom: 2rem;
+  font-family: 'Lora', serif;
+  position: relative;
+}
+.hadith-title::after {
+  content: '';
+  display: block;
+  width: 80px;
+  height: 4px;
+  background-color: #D4A373;
+  margin: 0.5rem auto 0;
+  border-radius: 2px;
+}

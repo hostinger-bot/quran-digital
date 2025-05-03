@@ -4,6 +4,8 @@ import SurahList from './components/SurahList';
 import SurahDetail from './components/SurahDetail';
 import SearchSurah from './components/SearchSurah';
 import PrayerTimes from './components/PrayerTimes';
+import AsmaulHusna from './components/AsmaulHusna';
+import HadithList from './components/HadithList';
 
 function App() {
   const [surahs, setSurahs] = useState([]);
@@ -12,6 +14,8 @@ function App() {
   const [error, setError] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
   const [showPrayerTimes, setShowPrayerTimes] = useState(false);
+  const [showAsmaulHusna, setShowAsmaulHusna] = useState(false);
+  const [showHadithList, setShowHadithList] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const appContainerRef = useRef(null);
@@ -47,7 +51,7 @@ function App() {
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [showSearch, selectedSurah, showPrayerTimes]);
+  }, [showSearch, selectedSurah, showPrayerTimes, showAsmaulHusna, showHadithList]);
 
   const handleSelectSurah = (nomor) => {
     setLoading(true);
@@ -58,6 +62,8 @@ function App() {
           setSelectedSurah(response.data.data);
           setShowSearch(false);
           setShowPrayerTimes(false);
+          setShowAsmaulHusna(false);
+          setShowHadithList(false);
           setLoading(false);
           window.scrollTo(0, 0);
         } else {
@@ -75,12 +81,34 @@ function App() {
     setShowSearch(!showSearch);
     setSelectedSurah(null);
     setShowPrayerTimes(false);
+    setShowAsmaulHusna(false);
+    setShowHadithList(false);
   };
 
   const togglePrayerTimes = () => {
     setShowPrayerTimes(!showPrayerTimes);
     setShowSearch(false);
     setSelectedSurah(null);
+    setShowAsmaulHusna(false);
+    setShowHadithList(false);
+    window.scrollTo(0, 0);
+  };
+
+  const toggleAsmaulHusna = () => {
+    setShowAsmaulHusna(!showAsmaulHusna);
+    setShowSearch(false);
+    setSelectedSurah(null);
+    setShowPrayerTimes(false);
+    setShowHadithList(false);
+    window.scrollTo(0, 0);
+  };
+
+  const toggleHadithList = () => {
+    setShowHadithList(!showHadithList);
+    setShowSearch(false);
+    setSelectedSurah(null);
+    setShowPrayerTimes(false);
+    setShowAsmaulHusna(false);
     window.scrollTo(0, 0);
   };
 
@@ -114,20 +142,30 @@ function App() {
           <button onClick={togglePrayerTimes} className="prayer-button">
             <i className={showPrayerTimes ? "fas fa-times" : "fas fa-pray"}></i>
           </button>
+          <button onClick={toggleAsmaulHusna} className="prayer-button">
+            <i className={showAsmaulHusna ? "fas fa-times" : "fas fa-book"}></i>
+          </button>
         </div>
         <div className="navbar-center">
-          <h1 className="navbar-title">Digital Quran</h1>
-          <p className="navbar-subtitle">Baca dan dengarkan Al-Quran dengan terjemahan dan audio dari qari terbaik</p>
+          <h1 className="navbar-title">Al-Qur'an Digital</h1>
+          <p className="navbar-subtitle">Lengkap Dengan Terjamahan</p>
         </div>
         <div className="navbar-right">
           <button onClick={toggleSearch} className="search-button">
             <i className={showSearch ? "fas fa-times" : "fas fa-search"}></i>
+          </button>
+          <button onClick={toggleHadithList} className="search-button">
+            <i className={showHadithList ? "fas fa-times" : "fas fa-book-open"}></i>
           </button>
         </div>
       </nav>
       <div className="main-content">
         {showPrayerTimes ? (
           <PrayerTimes />
+        ) : showAsmaulHusna ? (
+          <AsmaulHusna />
+        ) : showHadithList ? (
+          <HadithList />
         ) : showSearch ? (
           <SearchSurah surahs={surahs} onSelectSurah={handleSelectSurah} />
         ) : selectedSurah ? (
@@ -144,10 +182,9 @@ function App() {
       </div>
       <footer className="footer">
         <div className="footer-links">
-<a href="#" onClick={(e) => { e.preventDefault(); window.location.reload(); }} className="footer-link">
-  <i className="fas fa-home mr-2"></i> Kembali
-</a>
-
+          <a href="#" onClick={(e) => { e.preventDefault(); window.location.reload(); }} className="footer-link">
+            <i className="fas fa-home mr-2"></i> Kembali
+          </a>
           <a href="//github.com/hostinger-bot/quran-digital" className="footer-link">
             <i className="fas fa-file-code mr-2"></i> Script
           </a>
