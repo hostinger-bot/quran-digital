@@ -144,5 +144,4 @@ function AsmaulHusna() {
     </div>
   );
 }
-
 export default AsmaulHusna;

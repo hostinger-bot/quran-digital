@@ -6,52 +6,109 @@ function PrayerTimes() {
   const [monthlyPrayerTimes, setMonthlyPrayerTimes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedCity, setSelectedCity] = useState('');
+
+  // Daftar kota-kota di Indonesia dengan koordinat
+  const cities = [
+    { name: 'Jakarta', latitude: -6.200000, longitude: 106.816666, province: 'DKI Jakarta' },
+    { name: 'Surabaya', latitude: -7.24917, longitude: 112.63667, province: 'Jawa Timur' },
+    { name: 'Bandung', latitude: -6.92222, longitude: 107.5714, province: 'Jawa Barat' },
+    { name: 'Medan', latitude: 3.58333, longitude: 98.66667, province: 'Sumatera Utara' },
+    { name: 'Semarang', latitude: -6.99320, longitude: 110.4208, province: 'Jawa Tengah' },
+    { name: 'Makassar', latitude: -5.135399, longitude: 119.423790, province: 'Sulawesi Selatan' },
+    { name: 'Yogyakarta', latitude: -7.7956, longitude: 110.3695, province: 'DI Yogyakarta' },
+    { name: 'Denpasar', latitude: -8.6705, longitude: 115.2126, province: 'Bali' },
+    { name: 'Palembang', latitude: -2.9761, longitude: 104.7754, province: 'Sumatera Selatan' },
+    { name: 'Banda Aceh', latitude: 5.548290, longitude: 95.323753, province: 'Aceh' },
+    { name: 'Pekanbaru', latitude: 0.5333, longitude: 101.4500, province: 'Riau' },
+    { name: 'Batam', latitude: 1.0449, longitude: 103.9573, province: 'Kepulauan Riau' },
+    { name: 'Bogor', latitude: -6.5944, longitude: 106.7891, province: 'Jawa Barat' },
+    { name: 'Malang', latitude: -7.9828, longitude: 112.6304, province: 'Jawa Timur' },
+    { name: 'Depok', latitude: -6.4023, longitude: 106.8181, province: 'Jawa Barat' },
+    { name: 'Tangerang', latitude: -6.178306, longitude: 106.631889, province: 'Banten' },
+    { name: 'South Tangerang', latitude: -6.2971, longitude: 106.7153, province: 'Banten' },
+    { name: 'Bekasi', latitude: -6.2340, longitude: 106.9925, province: 'Jawa Barat' },
+    { name: 'Bandar Lampung', latitude: -5.3673, longitude: 105.2565, province: 'Lampung' },
+    { name: 'Padang', latitude: -0.9493, longitude: 100.3551, province: 'Sumatera Barat' },
+    // Tambahkan kota lain jika diperlukan
+  ];
+
+  const retryRequest = async (url, retries = 3, delay = 1000) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const response = await axios.get(url);
+        return response;
+      } catch (err) {
+        if (i === retries - 1) throw err;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  };
 
   useEffect(() => {
-    const fetchLocationAndPrayerTimes = async () => {
+    const fetchPrayerTimes = async () => {
       try {
-        // Ambil lokasi berdasarkan IP
-        const ipResponse = await axios.get('https://freeipapi.com/api/json/');
-        const { latitude, longitude, cityName, countryName } = ipResponse.data;
+        setLoading(true);
+        setError(null);
+        let latitude, longitude, cityName;
 
-        // Ambil waktu lokal dari browser
+        if (selectedCity) {
+          const selectedCityData = cities.find(city => city.name === selectedCity);
+          if (!selectedCityData) {
+            throw new Error('Kota tidak ditemukan');
+          }
+          latitude = selectedCityData.latitude;
+          longitude = selectedCityData.longitude;
+          cityName = `${selectedCityData.name}, ${selectedCityData.province}`;
+        } else {
+          try {
+            const ipResponse = await retryRequest('https://freeipapi.com/api/json/');
+            ({ latitude, longitude, cityName } = ipResponse.data);
+            cityName = cityName || 'Lokasi Anda';
+          } catch {
+            latitude = -6.200000;
+            longitude = 106.816666;
+            cityName = 'Jakarta, DKI Jakarta (Fallback)';
+          }
+        }
+
         const now = new Date();
         const formattedToday = now.toLocaleDateString('en-GB', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
-        }).split('/').join('-'); // Format DD-MM-YYYY
+        }).split('/').join('-');
 
-        // Fetch jadwal sholat untuk hari ini
-        const prayerResponse = await axios.get(
-          `https://api.aladhan.com/v1/timings/${formattedToday}?latitude=${latitude}&longitude=${longitude}&method=15&adjustment=1`
-        );
+        const prayerUrl = `https://api.aladhan.com/v1/timings/${formattedToday}?latitude=${latitude}&longitude=${longitude}&method=15&adjustment=1`;
+        const prayerResponse = await retryRequest(prayerUrl);
         setPrayerTimes({
           ...prayerResponse.data.data,
-          location: `${cityName}, ${countryName}`,
+          location: cityName,
           latitude,
           longitude,
         });
 
-        // Ambil jadwal sholat untuk 30 hari ke depan
         const currentMonth = now.getMonth() + 1;
         const currentYear = now.getFullYear();
-        const monthResponse = await axios.get(
-          `https://api.aladhan.com/v1/calendar?latitude=${latitude}&longitude=${longitude}&method=15&month=${currentMonth}&year=${currentYear}&adjustment=1`
-        );
+        const monthUrl = `https://api.aladhan.com/v1/calendar?latitude=${latitude}&longitude=${longitude}&method=15&month=${currentMonth}&year=${currentYear}&adjustment=1`;
+        const monthResponse = await retryRequest(monthUrl);
         const monthlyData = monthResponse.data.data;
         const todayIndex = monthlyData.findIndex(day => day.date.readable === prayerResponse.data.data.date.readable);
         const next30Days = monthlyData.slice(todayIndex, todayIndex + 30);
         setMonthlyPrayerTimes(next30Days);
       } catch (err) {
-        setError('Gagal mengambil jadwal sholat: ' + err.message);
+        setError(`Gagal mengambil jadwal sholat: ${err.message}. Pastikan koneksi internet stabil atau coba pilih kota secara manual.`);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchLocationAndPrayerTimes();
-  }, []);
+    fetchPrayerTimes();
+  }, [selectedCity]);
+
+  const handleCityChange = (event) => {
+    setSelectedCity(event.target.value);
+  };
 
   if (loading) {
     return (
@@ -68,7 +125,7 @@ function PrayerTimes() {
         <p className="error-text text-red-600">{error}</p>
         <button
           onClick={() => window.location.reload()}
-          className="back-button mt-4"
+          className="back-button mt-4 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
         >
           <i className="fas fa-redo-alt mr-2" /> Coba Lagi
         </button>
@@ -82,12 +139,30 @@ function PrayerTimes() {
 
   return (
     <div className="prayer-times-container max-w-4xl mx-auto p-6">
-      <h1 className="search-title mb-4">Jadwal Sholat</h1>
+      <h1 className="search-title mb-4 text-3xl font-bold text-green-800">Jadwal Sholat</h1>
+      <div className="mb-4 flex flex-col sm:flex-row items-center justify-center gap-2">
+        <label htmlFor="city-select" className="text-gray-700 font-medium">Pilih Kota:</label>
+        <select
+          id="city-select"
+          value={selectedCity}
+          onChange={handleCityChange}
+          className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-500 w-full sm:w-64"
+        >
+          <option value="">Deteksi Lokasi Otomatis (IP)</option>
+          {cities
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(city => (
+              <option key={city.name} value={city.name}>
+                {city.name} ({city.province})
+              </option>
+            ))}
+        </select>
+      </div>
       <p className="text-center text-gray-700 mb-2">
         {date.readable} ({date.hijri.date})
       </p>
       <p className="text-center text-gray-600 mb-6">
-        Lokasi: {location} (Lat: {latitude}, Long: {longitude})
+        Lokasi: {location} (Lat: {latitude.toFixed(4)}, Long: {longitude.toFixed(4)})
       </p>
       <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
         <table className="w-full text-center border-collapse">
@@ -110,7 +185,7 @@ function PrayerTimes() {
         </table>
       </div>
 
-      <h2 className="text-2xl font-semibold mb-4">Jadwal Sholat 30 Hari ke Depan</h2>
+      <h2 className="text-2xl font-semibold mb-4 text-green-800">Jadwal Sholat 30 Hari ke Depan</h2>
       <div className="bg-white rounded-lg shadow-md overflow-x-auto">
         <table className="w-full text-center border-collapse">
           <thead>
